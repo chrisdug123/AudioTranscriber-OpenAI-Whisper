@@ -5,4 +5,4 @@ Flask App with Open AI Whisper
 
 **After audio is recorded or uploaded, the OpenAI Whisper API is used to transcribe the audio**
 
-A bried video demonstration of this application can be found here:
+A brief video demonstration of this application can be found here: https://go.screenpal.com/watch/cZjh3sV9e5d
