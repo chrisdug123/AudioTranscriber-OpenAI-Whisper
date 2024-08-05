@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head><meta charset="UTF-8">
+        <title>OpenWhisper Model - Flask</title>
+        <style>
+            body {
+                front-family:Arial, sans-serif;
+                background-color: #f8f9fa;
+                margin:0;
+                padding:20px;
+                color: #333;
+            }
+
+            h2 {
+                color: #007bff;
+            }
+
+            form{
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 5px;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+
+            label {
+                display:block;
+                margin-bottom: 10px;
+                color:#495057;
+            }
+
+            input[type="file"]{
+                margin-bottom: 20px;
+            }
+
+            input[type="submit"]{
+                background-color:#007bff;
+                color:#ffffff;
+                border: none;
+                padding: 10px 20px;
+                border-radius:5px;
+                cursor: pointer;
+                font-size:16px;
+
+            }        
+
+            input[type="submit"]:hover{
+                background-color: #0056b3;
+            }
+
+            button{
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                margin-right: 10px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 16px;
+
+            }
+
+            button:disabled {
+                background-color: #ccc;
+                cursor: not allowed;
+            }
+
+            #transcription {
+                margin-top: 20px;
+                padding:10px;
+                background-color:  #e9ecef;
+                border-radius: 5px;
+            }
+
+            audio {
+                width: 100%;
+                margin-top: 20px;
+            }
+    </style>
+    </head>
+
+    <body>
+        <h2>Upload an Audio File or Record it!</h2>
+        <form action="/upload" enctype="multipart/form-data" method="post">
+            <label for="audio_input">UPLOAD</label>
+            <input accept="audio/*" id="audio_input" name="audio_file" type="file">
+            <input type="submit" value="Transcribe">
+        </form>
+
+        <h2>/\</h2>
+
+        <div style="margin-bottom: 10px">
+            <button id="startRecording">Start Recording</button>
+            <button disabled id="stopRecording">Stop</button>
+        </div>
+
+        <div>
+            <audio controls id="audioPlayback"></audio>
+        </div>
+
+        <h2 style="margin-bottom: 0">Transcription: <div id="transcription"></div></h2>
+        <div id="transcription"></div>
+
+
+        <script>
+
+            function transcribe(formData){
+                const transcriptionDiv = document.getElementById('transcription');
+
+                return fetch('/upload',{
+                    method: 'POST',
+                    body: formData
+                }).then(response => response.json()).then(data => {
+                    if (data.transcription){
+                        transcriptionDiv.textContent = data.transcription;   
+                    } else {
+                        transcriptionDiv.textContent = 'Error: response not received. ';
+                        console.error('Error in response: ', data);
+                    }
+
+                }).catch(error=>{
+                    transcriptionDiv.textContent = 'Could not send the audio file'
+                    console.error('Fetch error: ', error);
+                })
+            }
+
+            document.addEventListener('DOMContentLoaded',function(){
+                
+                const form  = document.querySelector('form');
+
+                form.addEventListener('submit', function(event){
+                    event.preventDefault();
+                    const formData = new FormData(form)
+                    transcribe(formData);
+                });
+
+                let mediaRecorder;
+                let audioChunks =[];
+
+                const startRecording = document.getElementById('startRecording');
+                const stopRecording = document.getElementById('stopRecording'); 
+                const audioPlayback = document.getElementById('audioPlayback');
+
+                startRecording.addEventListener('click', () => {
+                    navigator.mediaDevices.getUserMedia({audio: true})
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream);
+                        mediaRecorder.start();
+
+                        mediaRecorder.addEventListener('dataavailable', event=>{
+                            audioChunks.push(event.data);
+                        });
+
+                        mediaRecorder.addEventListener('stop', () => {
+                            const audioBlob = new Blob(audioChunks, {type: 'audio/wav'});
+                            audioChunks=[];
+
+                            audioPlayback.src = URL.createObjectURL(audioBlob);
+
+                            // create a form data
+
+                            const formData = new FormData();
+                            formData.append('audio_file', audioBlob, 'recording.wav');
+
+                            transcribe(formData);
+                        });
+                        
+                        startRecording.disabled =true ;
+                        stopRecording.disabled = false;
+                    });
+                });
+                    stopRecording.addEventListener('click', ()=>{
+                    if(mediaRecorder){
+                        mediaRecorder.stop();
+                        startRecording.disabled = false;
+                        stopRecording.disabled = true;
+                    }
+                })
+                
+               
+
+            });
+
+        </script>
+
+
+    </body>
+</html>
